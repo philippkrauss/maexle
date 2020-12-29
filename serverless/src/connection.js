@@ -1,27 +1,63 @@
 const dynamodb = require('serverless-dynamodb-client')
 const ApiGatewayManagementApi = require('aws-sdk').ApiGatewayManagementApi
+const {v4: uuidv4} = require('uuid')
 
 const docClient = dynamodb.doc
+const endpoint = process.env.IS_OFFLINE ? 'http://localhost:3001' : process.env.websocketsApiDomain
+
+function createApiGatewayManagementApi () {
+  return new ApiGatewayManagementApi({
+    apiVersion: '2018-11-29',
+    endpoint: endpoint,
+  })
+}
 
 /* eslint-disable no-unused-vars */
 async function connect (event, context) {
   /* eslint-enable */
   console.log(JSON.stringify(event))
+  const connectionId = event.requestContext.connectionId
   try {
-    await docClient
-        .put({
-          TableName: process.env.MAEXLE_TABLE,
-          Item: {
-            connectionId: event.requestContext.connectionId,
-          },
-        })
-        .promise()
+    let gameId
+    if (event.queryStringParameters.action === 'open') {
+      gameId = uuidv4()
+    } else if (event.queryStringParameters.action === 'join') {
+      gameId = event.queryStringParameters.gameId
+    }
+    const playerName = event.queryStringParameters.playerName
+    await persistPlayer(connectionId, gameId, playerName)
+    await notifyPlayerOfJoin(connectionId, gameId)
   } catch (e) {
     console.log(e)
   }
   return {
     statusCode: 200
   }
+}
+
+async function persistPlayer (connectionId, gameId, playerName) {
+  await docClient
+      .put({
+        TableName: process.env.MAEXLE_TABLE,
+        Item: {
+          connectionId,
+          gameId,
+          playerName
+        },
+      })
+      .promise()
+}
+
+async function notifyPlayerOfJoin (connectionId, gameId) {
+  await createApiGatewayManagementApi()
+      .postToConnection({
+        ConnectionId: connectionId,
+        Data: JSON.stringify({
+          action: 'JOIN',
+          gameId,
+        }),
+      })
+      .promise()
 }
 
 /* eslint-disable no-unused-vars */
@@ -84,7 +120,6 @@ async function sendMessage (event, context) {
   // API Gateway WebSocket service
   console.log(event.requestContext.stage)
   console.log(event.requestContext.stage)
-  const endpoint = process.env.IS_OFFLINE ? 'http://localhost:3001' : process.env.websocketsApiDomain
   const apiGateway = new ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint: endpoint,

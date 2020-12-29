@@ -1,25 +1,25 @@
 <template>
   <div>
-    Hier kannst du ein neues Spiel eröffnen.<br>
+    Spiel beitreten.<br>
     Dein Name: <input type="text" v-model="name"><br>
-    <button @click="openGameClicked">Los geht's</button>
+    <button @click="joinGameClicked">Los geht's</button>
   </div>
 </template>
 
 <script>
 export default {
-  name: 'OpenGame',
+  name: 'JoinGame',
   data() {
     return {
       name: null
     }
   },
   props: {
-    openGame: Function
+    joinGame: Function
   },
   methods: {
-    openGameClicked() {
-      this.openGame(this.name)
+    joinGameClicked() {
+      this.joinGame(this.name)
     }
   }
 }
