@@ -1,0 +1,100 @@
+service: maexle
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+
+provider:
+  name: aws
+  stage: dev
+  region: eu-central-1
+  runtime: nodejs12.x
+  apiGateway:
+    shouldStartNameWithService: true
+  environment:
+    MAEXLE_TABLE: ${self:custom.${self:custom.stage}.tableName}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+        - dynamodb:Scan
+      Resource:
+        Fn::GetAtt:
+          - MaexleDynamoDbTable
+          - Arn
+  stackTags:
+    app: maexle
+
+package:
+  include:
+    - handlers/**
+    - handler.js
+  exclude:
+    - test/**
+functions:
+  connect:
+    handler: handlers.connect
+    events:
+      - websocket:
+          route: $connect
+  disconnect:
+    handler: handlers.disconnect
+    events:
+      - websocket:
+          route: $disconnect
+  defaultHandler:
+    handler: handlers.defaultHandler
+    events:
+      - websocket:
+          route: foo # will trigger if $request.body.action === "foo"
+  fooHandler:
+    handler: handlers.fooHandler
+    events:
+      - websocket:
+          route: foo
+  sendMessage:
+    handler: handlers.sendMessage
+    environment:
+      websocketsApiDomain:
+        Fn::Join:
+          - ''
+          - - Ref: WebsocketsApi
+            - .execute-api.
+            - ${self:provider.region}
+            - .amazonaws.com/
+            - ${self:custom.stage}
+    events:
+      - http:
+          path: sendMessage
+          method: get
+resources:
+  Resources:
+    MaexleDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      #      DeletionPolicy: Retain
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: 'connectionId'
+            AttributeType: 'S'
+        KeySchema:
+          - AttributeName: 'connectionId'
+            KeyType: 'HASH'
+        BillingMode: PAY_PER_REQUEST
+        StreamSpecification:
+          StreamViewType: 'NEW_IMAGE'
+        TableName: ${self:provider.environment.MAEXLE_TABLE}
+
+custom:
+  stage: ${opt:stage, self:provider.stage}
+  prod:
+    tableName: maexle
+  dev:
+    tableName: maexle-dev
+  dynamodb:
+    stages:
+      - dev
+    start:
+      port: '8000'
+      inMemory: true,
+      migrate: true
