@@ -3,7 +3,11 @@
     <h1>Mäxle</h1>
     <join-game v-if="state === 'state-join'" :join-game="joinGame"></join-game>
     <open-game v-else-if="state === 'state-open'" :open-game="openGame"></open-game>
-    <lobby v-else-if="state === 'state-joined'" :game-id="gameId" :player-name="playerName"
+    <lobby v-else-if="state === 'state-joined'"
+           :active-players="activePlayers"
+           :game-id="gameId"
+           :user-id="userId"
+           :player-name="playerName"
            @gameStarted="gameStarted"></lobby>
     <game v-else-if="state === 'state-active'"></game>
   </div>
@@ -14,6 +18,7 @@ import OpenGame from '@/components/OpenGame'
 import Lobby from '@/components/Lobby'
 import Game from '@/components/Game'
 import JoinGame from '@/components/JoinGame'
+import {v4 as uuidv4} from 'uuid'
 
 export default {
   name: 'Maexle',
@@ -27,13 +32,16 @@ export default {
     return {
       state: null,
       gameId: null,
+      userId: null,
       connection: null,
       // endpoint: 'wss://fly71sq1s6.execute-api.eu-central-1.amazonaws.com/dev',
       endpoint: 'ws://localhost:3001',
-      playerName: null
+      playerName: null,
+      activePlayers: []
     }
   },
   created () {
+    this.userId = uuidv4()
     if (this.$route.query.gameId) {
       this.state = 'state-join'
       this.gameId = this.$route.query.gameId
@@ -47,23 +55,26 @@ export default {
     },
     joinGame (playerName) {
       this.playerName = playerName
-      this.connection = new WebSocket(`${this.endpoint}?action=join&playerName=${playerName}&gameId=${this.gameId}`)
+      this.connection = new WebSocket(`${this.endpoint}?action=join&playerName=${playerName}&gameId=${this.gameId}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
     },
     openGame (playerName) {
       this.playerName = playerName
-      this.connection = new WebSocket(`${this.endpoint}?action=open&playerName=${playerName}`)
+      this.connection = new WebSocket(`${this.endpoint}?action=open&playerName=${playerName}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
     },
     messageReceived: function (event) {
       console.log(event)
       const eventData = JSON.parse(event.data)
       if (eventData.action === 'JOIN') {
+        this.activePlayers.push({id: this.userId, name: this.playerName})
         this.gameId = eventData.gameId
         this.state = 'state-joined'
         if (!this.$route.query.gameId) {
           this.$router.push({path: '/', query: {gameId: this.gameId}})
         }
+      } else if (eventData.action === 'LOBBY_UPDATE') {
+        console.log('')
       }
     },
     sendMessage: function (message) {

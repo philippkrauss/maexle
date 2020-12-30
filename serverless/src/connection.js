@@ -17,6 +17,7 @@ async function connect (event, context) {
   /* eslint-enable */
   console.log(JSON.stringify(event))
   const connectionId = event.requestContext.connectionId
+  const userId = event.queryStringParameters.userId
   try {
     let gameId
     if (event.queryStringParameters.action === 'open') {
@@ -25,8 +26,9 @@ async function connect (event, context) {
       gameId = event.queryStringParameters.gameId
     }
     const playerName = event.queryStringParameters.playerName
-    await persistPlayer(connectionId, gameId, playerName)
+    await persistPlayer(connectionId, gameId, userId, playerName)
     await notifyPlayerOfJoin(connectionId, gameId)
+    await notifyPlayersOfOtherPlayers(gameId)
   } catch (e) {
     console.log(e)
   }
@@ -35,17 +37,33 @@ async function connect (event, context) {
   }
 }
 
-async function persistPlayer (connectionId, gameId, playerName) {
+async function notifyPlayersOfOtherPlayers (gameId) {
+  const playersInGame = await docClient.query({
+    TableName: process.env.MAEXLE_TABLE,
+    IndexName: 'GameIdIndex',
+    KeyConditionExpression: 'gameId = :value',
+    ExpressionAttributeValues: {
+      ':value': gameId
+    },
+    Select: 'ALL_ATTRIBUTES',
+  }).promise()
+  const connectionIds = playersInGame.Items.map(item => item.connectionId)
+  const players = playersInGame.Items.map(item => ({id: item.userId, name: item.playerName}))
+  console.log(connectionIds)
+  console.log(players)
+}
+
+async function persistPlayer (connectionId, gameId, userId, playerName) {
   await docClient
       .put({
         TableName: process.env.MAEXLE_TABLE,
         Item: {
           connectionId,
           gameId,
+          userId,
           playerName
         },
-      })
-      .promise()
+      }).promise()
 }
 
 async function notifyPlayerOfJoin (connectionId, gameId) {
@@ -56,8 +74,7 @@ async function notifyPlayerOfJoin (connectionId, gameId) {
           action: 'JOIN',
           gameId,
         }),
-      })
-      .promise()
+      }).promise()
 }
 
 /* eslint-disable no-unused-vars */
