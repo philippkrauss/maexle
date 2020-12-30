@@ -64,17 +64,15 @@ export default {
       this.connection.onmessage = this.messageReceived
     },
     messageReceived: function (event) {
-      console.log(event)
       const eventData = JSON.parse(event.data)
       if (eventData.action === 'JOIN') {
-        this.activePlayers.push({id: this.userId, name: this.playerName})
         this.gameId = eventData.gameId
         this.state = 'state-joined'
         if (!this.$route.query.gameId) {
           this.$router.push({path: '/', query: {gameId: this.gameId}})
         }
       } else if (eventData.action === 'LOBBY_UPDATE') {
-        console.log('')
+        this.activePlayers = eventData.playersInGame
       }
     },
     sendMessage: function (message) {

@@ -14,7 +14,6 @@ function createApiGatewayManagementApi () {
 /* eslint-disable no-unused-vars */
 async function connect (event, context) {
   /* eslint-enable */
-  console.log(JSON.stringify(event))
   const connectionId = event.requestContext.connectionId
   const userId = event.queryStringParameters.userId
   try {
@@ -36,12 +35,42 @@ async function connect (event, context) {
   }
 }
 
+/* eslint-disable no-unused-vars */
+async function disconnect (event, context) {
+  /* eslint-enable */
+  try {
+    const gameId = await persistence.getGameIdForConnection(event.requestContext.connectionId)
+    await persistence.deleteConnection(event.requestContext.connectionId)
+    await notifyPlayersOfOtherPlayers(gameId)
+  } catch (e) {
+    console.log(e)
+  }
+  return {
+    statusCode: 200
+  }
+}
+
+
 async function notifyPlayersOfOtherPlayers (gameId) {
   const playersInGame = await persistence.loadPlayersInGame(gameId)
   const connectionIds = playersInGame.Items.map(item => item.connectionId)
   const players = playersInGame.Items.map(item => ({id: item.userId, name: item.playerName}))
-  console.log(connectionIds)
-  console.log(players)
+  connectionIds.forEach((connectionId) => {
+    sendLobbyUpdate(connectionId, players)
+  })
+}
+
+async function sendLobbyUpdate (connectionId, playersInGame) {
+  sendAsString(connectionId, {
+    action: 'LOBBY_UPDATE',
+    playersInGame,
+  })
+}
+async function notifyPlayerOfJoin (connectionId, gameId) {
+  await sendAsString(connectionId, {
+    action: 'JOIN',
+    gameId,
+  })
 }
 
 async function sendAsString (connectionId, data) {
@@ -50,26 +79,6 @@ async function sendAsString (connectionId, data) {
         ConnectionId: connectionId,
         Data: JSON.stringify(data),
       }).promise()
-}
-
-async function notifyPlayerOfJoin (connectionId, gameId) {
-  await sendAsString(connectionId, {
-    action: 'JOIN',
-    gameId,
-  })
-}
-
-/* eslint-disable no-unused-vars */
-async function disconnect (event, context) {
-  /* eslint-enable */
-  try {
-    await persistence.deleteConnection(event.requestContext.connectionId)
-  } catch (e) {
-    console.log(e)
-  }
-  return {
-    statusCode: 200
-  }
 }
 
 /* eslint-disable no-unused-vars */
