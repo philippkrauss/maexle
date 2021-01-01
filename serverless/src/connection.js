@@ -14,19 +14,19 @@ function createApiGatewayManagementApi () {
 /* eslint-disable no-unused-vars */
 async function connect (event, context) {
   /* eslint-enable */
-  const connectionId = event.requestContext.connectionId
-  const userId = event.queryStringParameters.userId
+  const user = {
+    id: event.queryStringParameters.userId,
+    name: event.queryStringParameters.userName,
+    connectionId: event.requestContext.connectionId,
+    gameId: event.queryStringParameters.gameId
+  }
   try {
-    let gameId
     if (event.queryStringParameters.action === 'open') {
-      gameId = uuidv4()
-    } else if (event.queryStringParameters.action === 'join') {
-      gameId = event.queryStringParameters.gameId
+      user.gameId = await persistence.createGame(`Spiel von ${user.name}`)
     }
-    const playerName = event.queryStringParameters.playerName
-    await persistence.persistPlayer(connectionId, gameId, userId, playerName)
-    await notifyPlayerOfJoin(connectionId, gameId)
-    await notifyPlayersOfOtherPlayers(gameId)
+    await persistence.addUserToGame(user)
+    await notifyUserOfJoin(user)
+    await updateLobbyByGameId(user.gameId)
   } catch (e) {
     console.log(e)
   }
@@ -39,9 +39,14 @@ async function connect (event, context) {
 async function disconnect (event, context) {
   /* eslint-enable */
   try {
-    const gameId = await persistence.getGameIdForConnection(event.requestContext.connectionId)
-    await persistence.deleteConnection(event.requestContext.connectionId)
-    await notifyPlayersOfOtherPlayers(gameId)
+    const user = await persistence.getUserByConnection(event.requestContext.connectionId)
+    await persistence.deleteUser(user)
+    const remainingUsersInGame = await persistence.getAllUsersInGame(user.gameId)
+    if (remainingUsersInGame.length > 0) {
+      await updateLobbyByUsers(remainingUsersInGame)
+    } else {
+      await persistence.deleteGame(user.gameId)
+    }
   } catch (e) {
     console.log(e)
   }
@@ -50,26 +55,29 @@ async function disconnect (event, context) {
   }
 }
 
+async function updateLobbyByGameId (gameId) {
+  const usersInGame = await persistence.getAllUsersInGame(gameId)
+  await updateLobbyByUsers(usersInGame)
+}
 
-async function notifyPlayersOfOtherPlayers (gameId) {
-  const playersInGame = await persistence.loadPlayersInGame(gameId)
-  const connectionIds = playersInGame.Items.map(item => item.connectionId)
-  const players = playersInGame.Items.map(item => ({id: item.userId, name: item.playerName}))
-  connectionIds.forEach((connectionId) => {
-    sendLobbyUpdate(connectionId, players)
+async function updateLobbyByUsers (users) {
+  const userInfo = users.map(user => ({id: user.id, name: user.name}))
+  users.forEach(user => {
+    sendLobbyUpdate(user.connectionId, userInfo)
   })
 }
 
-async function sendLobbyUpdate (connectionId, playersInGame) {
+async function sendLobbyUpdate (connectionId, usersInGame) {
   sendAsString(connectionId, {
     action: 'LOBBY_UPDATE',
-    playersInGame,
+    usersInGame,
   })
 }
-async function notifyPlayerOfJoin (connectionId, gameId) {
-  await sendAsString(connectionId, {
+
+async function notifyUserOfJoin (user) {
+  await sendAsString(user.connectionId, {
     action: 'JOIN',
-    gameId,
+    gameId: user.gameId,
   })
 }
 
@@ -103,72 +111,9 @@ async function fooHandler (event, context) {
   }
 }
 
-/* eslint-disable no-unused-vars */
-async function sendMessage (event, context) {
-  /* eslint-enable */
-//   // Retrieve the list of active WebSocket connections that you recorded on connect
-//   const currentConnections = await docClient
-//       .scan({
-//         TableName: process.env.MAEXLE_TABLE,
-//         ProjectionExpression: 'connectionId',
-//         // FilterExpression: 'PK = :PK',
-//         // ExpressionAttributeValues: {
-//         //   ':PK': 'LIVE',
-//         // },
-//       })
-//       .promise()
-//
-//   // API Gateway WebSocket service
-//   console.log(event.requestContext.stage)
-//   console.log(event.requestContext.stage)
-//   const apiGateway = new ApiGatewayManagementApi({
-//     apiVersion: '2018-11-29',
-//     endpoint: endpoint,
-//   })
-//
-//   if (currentConnections && currentConnections.Items) {
-//     // Loop on all your active connections
-//     const sendMessageToAllConnections = currentConnections.Items.map(
-//         async ({connectionId: connectionId}) => {
-//           try {
-//             // And send them a message!
-//             await apiGateway
-//                 .postToConnection({
-//                   ConnectionId: connectionId,
-//                   Data: JSON.stringify({
-//                     data: 'Hello, world!',
-//                   }),
-//                 })
-//                 .promise()
-//           } catch (error) {
-//             if (error.statusCode === 410) {
-//               console.log(`Found stale connection, deleting ${connectionId}`)
-//               await docClient
-//                   .delete({
-//                     TableName: process.env.MAEXLE_TABLE,
-//                     Key: {
-//                       connectionId: connectionId,
-//                     },
-//                   })
-//                   .promise()
-//             } else {
-//               throw error
-//             }
-//           }
-//         },
-//     )
-//     await Promise.all(sendMessageToAllConnections)
-//   }
-  return {
-    statusCode: 200,
-    body: 'OK'
-  }
-}
-
 module.exports = {
   connect,
   disconnect,
-  sendMessage,
   defaultHandler,
   fooHandler
 }

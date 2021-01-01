@@ -1,12 +1,12 @@
 <template>
   <div>
-    <h2>Lobby for {{ gameId }}</h2>
-    Hallo {{ playerName }}<br>
-    <button @click="$emit('gameStarted')">Start</button>
+    <h2>Spiel {{ gameId }}</h2>
+    Hallo {{ userName }}<br>
+    <button v-if="activeUsers.length > 1" @click="$emit('gameStarted')">Start</button>
     <br>
     <h3>Aktive Spieler:</h3>
-    <div v-for="player in activePlayers" :key="player.id">
-      {{ player.name }} ({{ player.id === userId ? 'Du' : player.id }})
+    <div v-for="user in activeUsers" :key="user.id">
+      {{ user.name }} ({{ user.id === userId ? 'Du' : user.id }})
     </div>
     Link zu diesem Spiel: <strong id="currentLink">{{ currentLink }}</strong><br/>
     <button v-clipboard="currentLink">
@@ -21,13 +21,13 @@ export default {
   props: {
     gameId: String,
     userId: String,
-    playerName: String,
-    activePlayers: Array
+    userName: String,
+    activeUsers: Array
   },
   computed: {
     currentLink () {
       return window.location.href
-    }
+    },
   },
 }
 </script>

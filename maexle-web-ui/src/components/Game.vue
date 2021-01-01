@@ -6,7 +6,13 @@
 
 <script>
 export default {
-  name: 'Game'
+  name: 'Game',
+  props: {
+    gameId: String,
+    userId: String,
+    userName: String,
+    activeUsers: Array
+  },
 }
 </script>
 

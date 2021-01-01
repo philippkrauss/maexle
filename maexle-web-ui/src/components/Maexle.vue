@@ -4,12 +4,16 @@
     <join-game v-if="state === 'state-join'" :join-game="joinGame"></join-game>
     <open-game v-else-if="state === 'state-open'" :open-game="openGame"></open-game>
     <lobby v-else-if="state === 'state-joined'"
-           :active-players="activePlayers"
+           :active-users="activeUsers"
            :game-id="gameId"
            :user-id="userId"
-           :player-name="playerName"
+           :user-name="userName"
            @gameStarted="gameStarted"></lobby>
-    <game v-else-if="state === 'state-active'"></game>
+    <game v-else-if="state === 'state-active'"
+          :active-users="activeUsers"
+          :game-id="gameId"
+          :user-id="userId"
+          :user-name="userName"></game>
   </div>
 </template>
 
@@ -36,8 +40,8 @@ export default {
       connection: null,
       // endpoint: 'wss://fly71sq1s6.execute-api.eu-central-1.amazonaws.com/dev',
       endpoint: 'ws://localhost:3001',
-      playerName: null,
-      activePlayers: []
+      userName: null,
+      activeUsers: []
     }
   },
   created () {
@@ -53,14 +57,14 @@ export default {
     gameStarted () {
       this.state = 'state-active'
     },
-    joinGame (playerName) {
-      this.playerName = playerName
-      this.connection = new WebSocket(`${this.endpoint}?action=join&playerName=${playerName}&gameId=${this.gameId}&userId=${this.userId}`)
+    joinGame (userName) {
+      this.userName = userName
+      this.connection = new WebSocket(`${this.endpoint}?action=join&userName=${userName}&gameId=${this.gameId}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
     },
-    openGame (playerName) {
-      this.playerName = playerName
-      this.connection = new WebSocket(`${this.endpoint}?action=open&playerName=${playerName}&userId=${this.userId}`)
+    openGame (userName) {
+      this.userName = userName
+      this.connection = new WebSocket(`${this.endpoint}?action=open&userName=${userName}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
     },
     messageReceived: function (event) {
@@ -72,7 +76,7 @@ export default {
           this.$router.push({path: '/', query: {gameId: this.gameId}})
         }
       } else if (eventData.action === 'LOBBY_UPDATE') {
-        this.activePlayers = eventData.playersInGame
+        this.activeUsers = eventData.usersInGame.sort((a, b) => (a.name > b.name) ? 1 : -1)
       }
     },
     sendMessage: function (message) {
