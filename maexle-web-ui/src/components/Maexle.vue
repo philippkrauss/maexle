@@ -55,7 +55,7 @@ export default {
   },
   methods: {
     gameStarted () {
-      this.state = 'state-active'
+      this.sendMessage({action: 'startGame'})
     },
     joinGame (userName) {
       this.userName = userName
@@ -75,14 +75,20 @@ export default {
         if (!this.$route.query.gameId) {
           this.$router.push({path: '/', query: {gameId: this.gameId}})
         }
+      } else if (eventData.action === 'BAD_GAME') {
+        console.log('going to root')
+        this.connection.close()
+        this.state = 'state-open'
+        this.$router.push({path: '/'})
       } else if (eventData.action === 'LOBBY_UPDATE') {
         this.activeUsers = eventData.usersInGame.sort((a, b) => (a.name > b.name) ? 1 : -1)
+      } else if (eventData.action === 'GAME_START') {
+        this.state = 'state-active'
       }
     },
     sendMessage: function (message) {
-      console.log(this.connection)
-      console.log('sending message')
-      this.connection.send(JSON.stringify({action: message}))
+      console.log('sending message ', message)
+      this.connection.send(JSON.stringify(message))
     }
   },
 }

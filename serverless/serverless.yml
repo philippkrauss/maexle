@@ -47,12 +47,7 @@ functions:
     handler: handlers.defaultHandler
     events:
       - websocket:
-          route: foo # will trigger if $request.body.action === "foo"
-  fooHandler:
-    handler: handlers.fooHandler
-    events:
-      - websocket:
-          route: foo
+          route: $default
 resources:
   Resources:
     MaexleDynamoDbTable:

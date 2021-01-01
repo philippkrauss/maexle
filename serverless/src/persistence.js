@@ -28,31 +28,40 @@ async function createGame (gameName) {
           pKey: getGamePKey(gameId),
           sKey: gameSKey,
           gameName,
-          status: STATUS_OPEN
+          gameStatus: STATUS_OPEN
         },
       }).promise()
   return gameId
 }
 
-async function gameExists (gameId) {
+async function isGameOpen (gameId) {
+  return await checkGameStatus(gameId, STATUS_OPEN)
+}
+
+async function isGameLocked (gameId) {
+  return await checkGameStatus(gameId, STATUS_LOCKED)
+}
+
+async function checkGameStatus (gameId, status) {
   const getResponse = await docClient.get({
     TableName,
     Key: {
       pKey: getGamePKey(gameId),
       sKey: gameSKey,
     },
-  })
-  return !!getResponse.Item
+  }).promise()
+  return (getResponse.Item && getResponse.Item.gameStatus === status)
 }
 
-function assertGameExists (gameId) {
-  if (!gameExists(gameId)) {
+async function assertGameIsOpen (gameId) {
+  const valid = await isGameOpen(gameId)
+  if (!valid) {
     throw new Error(`Game ${gameId} does not exist`)
   }
 }
 
 async function addUserToGame (user) {
-  assertGameExists(user.gameId)
+  await assertGameIsOpen(user.gameId)
   await docClient
       .put({
         TableName,
@@ -92,27 +101,11 @@ async function lockGame (gameId) {
       pKey: getGamePKey(gameId),
       sKey: gameSKey,
     },
-    UpdateExpression: 'SET status = :value',
+    UpdateExpression: 'SET gameStatus = :value',
     ExpressionAttributeValues: {
       ':value': STATUS_LOCKED
     },
-  })
-}
-
-async function isGameLocked (gameId) {
-  const getResponse = await docClient.get({
-    TableName,
-    Key: {
-      pKey: getGamePKey(gameId),
-      sKey: gameSKey,
-    },
-  })
-  return (getResponse.Item && getResponse.Item.status === STATUS_LOCKED)
-}
-
-async function stillUsersInGame (gameId) {
-  const usersInGame = await getAllUsersInGame(gameId)
-  return usersInGame.length > 0
+  }).promise()
 }
 
 async function deleteUser (user) {
@@ -166,12 +159,11 @@ async function getUserByConnection (connectionId) {
 
 module.exports = {
   createGame,
-  gameExists,
+  isGameOpen,
   addUserToGame,
   getAllUsersInGame,
   lockGame,
   isGameLocked,
-  stillUsersInGame,
   deleteUser,
   deleteGame,
   getUserByConnection,
