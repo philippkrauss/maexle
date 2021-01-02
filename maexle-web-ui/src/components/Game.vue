@@ -7,11 +7,13 @@
     </div>
     <div v-if="myTurn">Du bist dran!</div>
     <div v-else>{{ currentUser.name }} ist dran</div>
+    <div v-if="previousClaimExists">{{ previousClaimText }} ist angesagt!</div>
     <div v-if="myTurn">
       <div v-if="firstInLine">Du musst erstmal würfeln.</div>
       <div v-if="currentRoll">Du hast {{ currentRollText }} gewürfelt</div>
-      <button class="actionButton" v-if="previousRoll && !currentRoll">Aufdecken</button>
-      <button class="actionButton" v-if="!currentRoll" @click="roll">Würfeln</button>
+      <button class="actionButton" v-if="canUncover" @click="uncover">Aufdecken</button>
+      <button class="actionButton" v-if="canRoll" @click="roll">Würfeln</button>
+      <button class="actionButton" v-if="maexleClaimed" @click="giveUp">Aufgeben</button>
       <div v-if="currentRoll">
         <select v-model="currentClaim">
           <option
@@ -34,6 +36,9 @@
 const CURRENT_USER_ID = 'currentUserId'
 const PREVIOUS_ROLL = 'previousRoll'
 const PREVIOUS_CLAIM = 'previousClaim'
+
+const MAEXLE_LABEL = 'Mäxle'
+const MAEXLE_NUMERIC_VALUE = 210
 
 export default {
   name: 'Game',
@@ -70,9 +75,15 @@ export default {
         {label: '4er Pasch', numericValue: 104},
         {label: '5er Pasch', numericValue: 105},
         {label: '6er Pasch', numericValue: 106},
-        {label: 'Mäxle', numericValue: 21}
+        {label: MAEXLE_LABEL, numericValue: MAEXLE_NUMERIC_VALUE}
       ],
     }
+  },
+  watch: {
+    gameState() {
+        this.currentRoll = undefined
+        this.currentClaim = undefined
+    },
   },
   computed: {
     currentUser () {
@@ -85,20 +96,49 @@ export default {
     myTurn () {
       return this.currentUser.id === this.userId
     },
+    canUncover() {
+      return this.previousRollExists && !this.currentRoll
+    },
+    canRoll() {
+      return !this.currentRoll && !this.maexleClaimed
+    },
     firstInLine () {
       return !this.previousRoll && !this.currentRoll
     },
+    previousRollExists () {
+      return !!this.previousRoll
+    },
     previousRoll () {
-      return !!this.gameState[PREVIOUS_ROLL]
+      return this.gameState[PREVIOUS_ROLL]
+    },
+    previousClaimExists () {
+      return !!this.previousClaim
+    },
+    previousClaim () {
+      return this.gameState[PREVIOUS_CLAIM]
+    },
+    previousClaimText () {
+      return this.previousClaimExists ? this.getRollText(this.previousClaim) : undefined
     },
     currentRollText () {
-      return this.values.find(value => value.numericValue === this.currentRoll).label
+      return this.currentRoll ? this.getRollText(this.currentRoll) : undefined
     },
     availableValues () {
-      return this.values.filter(value => value.numericValue > this.currentRoll)
+      return this.values.filter(value => value.numericValue >= this.minimumClaimValue.numericValue)
     },
+    minimumClaimValue () {
+      const minimumValue = this.previousClaimExists ? this.previousClaim + 1 : this.values[0].numericValue
+      const availableClaims = this.values.filter(value => value.numericValue >= minimumValue)
+      return availableClaims.length > 0 ? availableClaims[0] : undefined
+    },
+    maexleClaimed () {
+      return this.previousClaimExists && (this.previousClaim === MAEXLE_NUMERIC_VALUE)
+    }
   },
   methods: {
+    getRollText (roll) {
+      return this.values.find(value => value.numericValue === roll).label
+    },
     done () {
       const newGameState = JSON.parse(JSON.stringify(this.gameState))
       newGameState[CURRENT_USER_ID] = this.calculateNextUserId()
@@ -113,7 +153,7 @@ export default {
       const roll1 = Math.ceil(Math.random() * 6)
       const roll2 = Math.ceil(Math.random() * 6)
       this.currentRoll = this.calculateResult(roll1, roll2)
-      this.currentClaim = this.calculateMinimumClaim(this.currentRoll)
+      this.currentClaim = this.minimumClaimValue
     },
     calculateResult (roll1, roll2) {
       if (roll1 > roll2) {
@@ -124,19 +164,19 @@ export default {
         return 100 + roll1
       }
     },
-    sendClaim() {
+    sendClaim () {
       const newGameState = JSON.parse(JSON.stringify(this.gameState))
       newGameState[CURRENT_USER_ID] = this.calculateNextUserId()
       newGameState[PREVIOUS_ROLL] = this.currentRoll
-      newGameState[PREVIOUS_CLAIM] = this.currentClaim
+      newGameState[PREVIOUS_CLAIM] = this.currentClaim.numericValue
       this.updateGame(newGameState)
     },
-    calculateMinimumClaim(roll) {
-      const availableClaims = this.values.filter(value => value.numericValue > roll)
-      if (availableClaims.length > 0) {
-        return availableClaims[0]
-      }
+    giveUp () {
+      console.log('give up')
     },
+    uncover () {
+      console.log('uncover')
+    }
   }
 }
 </script>
