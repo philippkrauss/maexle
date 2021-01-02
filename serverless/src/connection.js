@@ -95,9 +95,24 @@ async function sendStartGame (gameId) {
   }
 }
 
+async function sendUpdateGame (gameId, gameState) {
+  const usersInGame = await persistence.getAllUsersInGame(gameId)
+  for (const user of usersInGame) {
+    await notifyUserOfUpdateGame(user, gameState)
+  }
+}
+
+async function notifyUserOfUpdateGame (user, gameState) {
+  await sendAsString(user.connectionId, {
+    action: 'GAME_UPDATE',
+    gameState
+  })
+}
+
 async function notifyUserOfStartGame (user) {
   await sendAsString(user.connectionId, {
     action: 'GAME_START',
+    gameState: {}
   })
 }
 
@@ -125,6 +140,8 @@ async function defaultHandler (event, context) {
   if (eventBody.action === 'startGame') {
     await persistence.lockGame(user.gameId)
     await sendStartGame(user.gameId)
+  } else if (eventBody.action === 'updateGame') {
+    await sendUpdateGame(user.gameId, eventBody.gameState)
   }
   return {
     statusCode: 200,

@@ -13,7 +13,9 @@
           :active-users="activeUsers"
           :game-id="gameId"
           :user-id="userId"
-          :user-name="userName"></game>
+          :user-name="userName"
+          :game-state="gameState"
+          :update-game="updateGame"></game>
   </div>
 </template>
 
@@ -41,7 +43,8 @@ export default {
       // endpoint: 'wss://fly71sq1s6.execute-api.eu-central-1.amazonaws.com/dev',
       endpoint: 'ws://localhost:3001',
       userName: null,
-      activeUsers: []
+      activeUsers: [],
+      gameState: {}
     }
   },
   created () {
@@ -67,6 +70,9 @@ export default {
       this.connection = new WebSocket(`${this.endpoint}?action=open&userName=${userName}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
     },
+    updateGame (gameState) {
+      this.sendMessage({action: 'updateGame', gameState})
+    },
     messageReceived: function (event) {
       const eventData = JSON.parse(event.data)
       if (eventData.action === 'JOIN') {
@@ -84,6 +90,9 @@ export default {
         this.activeUsers = eventData.usersInGame.sort((a, b) => (a.name > b.name) ? 1 : -1)
       } else if (eventData.action === 'GAME_START') {
         this.state = 'state-active'
+        this.gameState = eventData.gameState
+      } else if (eventData.action === 'GAME_UPDATE') {
+        this.gameState = eventData.gameState
       }
     },
     sendMessage: function (message) {
