@@ -91,7 +91,7 @@ async function notifyUserOfJoin (user) {
 async function sendStartGame (gameId) {
   const usersInGame = await persistence.getAllUsersInGame(gameId)
   for (const user of usersInGame) {
-    await notifyUserOfStartGame(user)
+    await notifyUserOfStartGame(user, usersInGame)
   }
 }
 
@@ -109,10 +109,10 @@ async function notifyUserOfUpdateGame (user, gameState) {
   })
 }
 
-async function notifyUserOfStartGame (user) {
+async function notifyUserOfStartGame (user, usersInGame) {
   await sendAsString(user.connectionId, {
     action: 'GAME_START',
-    gameState: {}
+    gameState: {score: usersInGame.map(u => ({id: u.id, name: u.name, score: 0}))}
   })
 }
 
