@@ -101,9 +101,6 @@ export default {
         return undefined
       }
     },
-    previousUserIsMe () {
-      return this.previousUser.id === this.userId
-    },
     canUncover () {
       return this.previousRollExists && !this.currentRoll
     },

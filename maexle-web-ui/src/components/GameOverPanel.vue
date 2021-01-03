@@ -61,6 +61,9 @@ export default {
     previousRollText () {
       return getRollText(this.previousRoll)
     },
+    previousUserIsMe () {
+      return this.previousUser.id === this.userId
+    },
   }
 }
 </script>
