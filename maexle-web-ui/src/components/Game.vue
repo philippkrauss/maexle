@@ -62,14 +62,13 @@
         </div>
       </div>
     </div>
-    <div>
-      <h3>Punktestand</h3>
-      <div v-for="score in orderedScore" :key="score.id">{{ score.id === userId ? 'Du' : score.name }}: {{ score.score }}</div>
-    </div>
+    <score :score-board="scoreBoard" :user-id="userId"></score>
   </div>
 </template>
 
 <script>
+import Score from '@/components/Score'
+
 const CURRENT_USER_ID = 'currentUserId'
 const PREVIOUS_USER_ID = 'previousUserId'
 const PREVIOUS_ROLL = 'previousRoll'
@@ -83,6 +82,7 @@ const MAEXLE_NUMERIC_VALUE = 210
 
 export default {
   name: 'Game',
+  components: {Score},
   props: {
     gameId: String,
     userId: String,
@@ -200,9 +200,8 @@ export default {
     gameOver () {
       return this.uncovered || this.gaveUp
     },
-    orderedScore () {
-      const score = JSON.parse(JSON.stringify(this.gameState[SCORE]))
-      return score.sort((a, b) => (a.score === b.score) ? 0 : ((a.score > b.score) ? 1 : -1))
+    scoreBoard () {
+      return this.gameState[SCORE]
     }
   },
   methods: {
