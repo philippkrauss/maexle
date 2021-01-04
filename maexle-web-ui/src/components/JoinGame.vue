@@ -1,15 +1,15 @@
 <template>
   <div>
     Spiel beitreten.<br>
-    Dein Name: <input type="text" v-model="name"><br>
-    <button @click="joinGameClicked">Los geht's</button>
+    <label>Dein Name: <input type="text" v-model="name"></label><br>
+    <button :disabled="!name" @click="joinGameClicked">Los geht's</button>
   </div>
 </template>
 
 <script>
 export default {
   name: 'JoinGame',
-  data() {
+  data () {
     return {
       name: null
     }
@@ -18,10 +18,10 @@ export default {
     joinGame: Function
   },
   methods: {
-    joinGameClicked() {
+    joinGameClicked () {
       this.joinGame(this.name)
-    }
-  }
+    },
+  },
 }
 </script>
 

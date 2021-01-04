@@ -1,7 +1,6 @@
 <template>
   <div>
-    <h2>Spiel {{ gameId }}</h2>
-    Hallo {{ userName }}<br>
+    <h2>Hallo {{ userName }}</h2>
     <button v-if="activeUsers.length > 1" @click="$emit('gameStarted')">Start</button>
     <br>
     <h3>Aktive Spieler:</h3>

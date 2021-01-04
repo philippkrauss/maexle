@@ -2,7 +2,7 @@
   <div>
     <h3>Punktestand</h3>
     <div v-for="score in orderedScore" :key="score.id">
-      {{ score.id === userId ? 'Du' : score.name }}: {{ score.score }}
+      {{ score.id === userId ? 'Du' : score.name }}: {{ score.score }} <i v-if="score.inactive">(Hat das Spiel verlassen)</i>
     </div>
   </div>
 </template>

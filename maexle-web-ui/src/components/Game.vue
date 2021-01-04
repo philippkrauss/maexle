@@ -1,31 +1,33 @@
 <template>
   <div>
     <h2>Hallo {{ userName }}</h2>
-    <game-over-panel
-        v-if="gameOver"
-        :user-id="userId"
-        :current-user="currentUser"
-        :previous-user="previousUser"
-        :gave-up="gaveUp"
-        :uncovered="uncovered"
-        :previous-roll="previousRoll"
-        :previous-claim="previousClaim"
-        @restartGame="restartGame"
-    ></game-over-panel>
-    <game-panel
-        v-else
-        ref="gamePanel"
-        :user-id="userId"
-        :active-users="activeUsers"
-        :current-user="currentUser"
-        :previous-user="previousUser"
-        :previous-roll="previousRoll"
-        :previous-claim="previousClaim"
-        @sendClaim="sendClaim"
-        @giveUp="giveUp"
-        @uncover="uncover"
-    >
-    </game-panel>
+    <last-user-in-game-panel v-if="lastUserInGame"></last-user-in-game-panel>
+    <div v-else>
+      <game-over-panel
+          v-if="gameOver"
+          :user-id="userId"
+          :current-user="currentUser"
+          :previous-user="previousUser"
+          :gave-up="gaveUp"
+          :uncovered="uncovered"
+          :previous-roll="previousRoll"
+          :previous-claim="previousClaim"
+          @restartGame="restartGame"
+      ></game-over-panel>
+      <game-panel
+          v-else
+          ref="gamePanel"
+          :user-id="userId"
+          :active-users="activeUsers"
+          :current-user="currentUser"
+          :previous-user="previousUser"
+          :previous-roll="previousRoll"
+          :previous-claim="previousClaim"
+          @sendClaim="sendClaim"
+          @giveUp="giveUp"
+          @uncover="uncover"
+      ></game-panel>
+    </div>
     <score :score-board="scoreBoard" :user-id="userId"></score>
   </div>
 </template>
@@ -35,9 +37,12 @@ import Score from '@/components/Score'
 import GameOverPanel from '@/components/GameOverPanel'
 import GamePanel from '@/components/GamePanel'
 import {MAEXLE_NUMERIC_VALUE} from './values'
+import LastUserInGamePanel from '@/components/LastUserInGamePanel'
+import Vue from 'vue'
 
 const CURRENT_USER_ID = 'currentUserId'
 const PREVIOUS_USER_ID = 'previousUserId'
+const PREVIOUS_USER_NAME = 'previousUserName'
 const PREVIOUS_ROLL = 'previousRoll'
 const PREVIOUS_CLAIM = 'previousClaim'
 const GAVE_UP = 'gaveUp'
@@ -50,6 +55,7 @@ export default {
     Score,
     GameOverPanel,
     GamePanel,
+    LastUserInGamePanel,
   },
   props: {
     gameId: String,
@@ -66,21 +72,38 @@ export default {
         gamePanel.reset()
       }
     },
+    activeUsers (newActiveUsers, oldActiveUsers) {
+      const foundCurrentUser = newActiveUsers.find(u => u.id === this.currentUserId)
+      if (!foundCurrentUser) {
+        this.gameState[CURRENT_USER_ID] = this.calculateNextUserId(oldActiveUsers)
+      }
+      this.scoreBoard.forEach(scoreBoardItem => {
+        const userStillActive = newActiveUsers.find(u => u.id === scoreBoardItem.id)
+        if (!userStillActive) {
+          Vue.set(scoreBoardItem, 'inactive', true)
+        }
+      })
+    }
   },
   computed: {
+    currentUserId () {
+      return this.gameState[CURRENT_USER_ID]
+    },
     currentUser () {
-      if (this.gameState[CURRENT_USER_ID]) {
-        return this.activeUsers.find(user => user.id === this.gameState[CURRENT_USER_ID])
+      if (this.currentUserId) {
+        return this.activeUsers.find(user => user.id === this.currentUserId)
       } else {
         return this.activeUsers[0]
       }
     },
     previousUser () {
-      if (this.gameState[PREVIOUS_USER_ID]) {
-        return this.activeUsers.find(user => user.id === this.gameState[PREVIOUS_USER_ID])
-      } else {
-        return undefined
+      return {
+        id: this.gameState[PREVIOUS_USER_ID],
+        name: this.gameState[PREVIOUS_USER_NAME],
       }
+    },
+    lastUserInGame () {
+      return this.activeUsers.length === 1
     },
     previousRoll () {
       return this.gameState[PREVIOUS_ROLL]
@@ -105,15 +128,16 @@ export default {
     sendClaim (currentRoll, currentClaim) {
       const newGameState = JSON.parse(JSON.stringify(this.gameState))
       newGameState[PREVIOUS_USER_ID] = this.currentUser.id
-      newGameState[CURRENT_USER_ID] = this.calculateNextUserId()
+      newGameState[PREVIOUS_USER_NAME] = this.currentUser.name
+      newGameState[CURRENT_USER_ID] = this.calculateNextUserId(this.activeUsers)
       newGameState[PREVIOUS_ROLL] = currentRoll
       newGameState[PREVIOUS_CLAIM] = currentClaim
       this.updateGame(newGameState)
     },
-    calculateNextUserId () {
-      const currentUserIndex = this.activeUsers.findIndex(user => user.id === this.currentUser.id)
-      const nextUserIndex = (currentUserIndex + 1) % this.activeUsers.length
-      return this.activeUsers[nextUserIndex].id
+    calculateNextUserId (userList) {
+      const currentUserIndex = userList.findIndex(user => user.id === this.currentUser.id)
+      const nextUserIndex = (currentUserIndex + 1) % userList.length
+      return userList[nextUserIndex].id
     },
     giveUp () {
       const newGameState = JSON.parse(JSON.stringify(this.gameState))

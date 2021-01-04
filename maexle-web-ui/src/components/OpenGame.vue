@@ -1,15 +1,15 @@
 <template>
   <div>
     Hier kannst du ein neues Spiel eröffnen.<br>
-    Dein Name: <input type="text" v-model="name"><br>
-    <button @click="openGameClicked">Los geht's</button>
+    <label>Dein Name: <input type="text" v-model="name"></label><br>
+    <button :disabled="!name" @click="openGameClicked">Los geht's</button>
   </div>
 </template>
 
 <script>
 export default {
   name: 'OpenGame',
-  data() {
+  data () {
     return {
       name: null
     }
@@ -18,10 +18,10 @@ export default {
     openGame: Function
   },
   methods: {
-    openGameClicked() {
+    openGameClicked () {
       this.openGame(this.name)
-    }
-  }
+    },
+  },
 }
 </script>
 
