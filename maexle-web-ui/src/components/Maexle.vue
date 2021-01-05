@@ -60,15 +60,23 @@ export default {
     gameStarted () {
       this.sendMessage({action: 'startGame'})
     },
+    connectionEstablished () {
+      console.log('connection established')
+      setTimeout(() => {
+        this.sendMessage({action: 'connectionEstablished'})
+      }, 1000)
+    },
     joinGame (userName) {
       this.userName = userName
       this.connection = new WebSocket(`${this.endpoint}?action=join&userName=${userName}&gameId=${this.gameId}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
+      this.connection.onopen = this.connectionEstablished
     },
     openGame (userName) {
       this.userName = userName
       this.connection = new WebSocket(`${this.endpoint}?action=open&userName=${userName}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
+      this.connection.onopen = this.connectionEstablished
     },
     updateGame (gameState) {
       this.sendMessage({action: 'updateGame', gameState})

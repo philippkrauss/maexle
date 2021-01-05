@@ -30,9 +30,11 @@ provider:
         - dynamodb:Query
         - dynamodb:DeleteItem
       Resource:
-        Fn::GetAtt:
-          - MaexleDynamoDbTable
-          - Arn
+        - { "Fn::GetAtt": [ "MaexleDynamoDbTable", "Arn" ] }
+        - Fn::Join:
+            - "/"
+            - - { "Fn::GetAtt": [ "MaexleDynamoDbTable", "Arn" ] }
+              - "index/*"
   stackTags:
     app: maexle
 

@@ -6,6 +6,7 @@ const endpoint = process.env.IS_OFFLINE ? 'http://localhost:3001' : process.env.
 const RESPONSE_OK = {statusCode: 200}
 
 function createApiGatewayManagementApi () {
+  console.log('opening connection to ', endpoint)
   return new ApiGatewayManagementApi({
     apiVersion: '2018-11-29',
     endpoint: endpoint,
@@ -16,6 +17,7 @@ function createApiGatewayManagementApi () {
 async function connect (event, context) {
   /* eslint-enable */
   const user = parseUserFromEvent(event)
+  console.log('user connected: ', user)
   try {
     if (event.queryStringParameters.action === 'open') {
       user.gameId = await persistence.createGame(`Spiel von ${user.name}`)
@@ -27,8 +29,6 @@ async function connect (event, context) {
       }
     }
     await persistence.addUserToGame(user)
-    await notifyUserOfJoin(user)
-    await updateLobbyByGameId(user.gameId)
   } catch (e) {
     console.log(e)
   }
@@ -40,6 +40,7 @@ async function disconnect (event, context) {
   /* eslint-enable */
   try {
     const user = await persistence.getUserByConnection(event.requestContext.connectionId)
+    console.log('user disconnected: ', user)
     await persistence.deleteUser(user)
     const remainingUsersInGame = await persistence.getAllUsersInGame(user.gameId)
     if (remainingUsersInGame.length > 0) {
@@ -64,24 +65,27 @@ function parseUserFromEvent (event) {
 
 async function updateLobbyByGameId (gameId) {
   const usersInGame = await persistence.getAllUsersInGame(gameId)
+  console.log('updating lobby for game ', gameId, usersInGame)
   await updateLobbyByUsers(usersInGame)
 }
 
 async function updateLobbyByUsers (users) {
   const userInfo = users.map(user => ({id: user.id, name: user.name}))
-  users.forEach(user => {
-    sendLobbyUpdate(user.connectionId, userInfo)
-  })
+  for (const user of users) {
+    console.log(`sending lobby update to ${user.name}`, userInfo)
+    await sendLobbyUpdate(user.connectionId, userInfo)
+  }
 }
 
 async function sendLobbyUpdate (connectionId, usersInGame) {
-  sendAsString(connectionId, {
+  await sendAsString(connectionId, {
     action: 'LOBBY_UPDATE',
     usersInGame,
   })
 }
 
 async function notifyUserOfJoin (user) {
+  console.log('notifying user of join: ', user)
   await sendAsString(user.connectionId, {
     action: 'JOIN',
     gameId: user.gameId,
@@ -103,6 +107,7 @@ async function sendUpdateGame (gameId, gameState) {
 }
 
 async function notifyUserOfUpdateGame (user, gameState) {
+  console.log('notifying user of game update: ', user)
   await sendAsString(user.connectionId, {
     action: 'GAME_UPDATE',
     gameState
@@ -110,6 +115,7 @@ async function notifyUserOfUpdateGame (user, gameState) {
 }
 
 async function notifyUserOfStartGame (user, usersInGame) {
+  console.log('notifying user of start game: ', user)
   await sendAsString(user.connectionId, {
     action: 'GAME_START',
     gameState: {score: usersInGame.map(u => ({id: u.id, name: u.name, score: 0}))}
@@ -117,6 +123,7 @@ async function notifyUserOfStartGame (user, usersInGame) {
 }
 
 async function notifyUserOfLockedGame (user) {
+  console.log('notifying user of locked game: ', user)
   await sendAsString(user.connectionId, {
     action: 'BAD_GAME',
   })
@@ -133,11 +140,12 @@ async function sendAsString (connectionId, data) {
 /* eslint-disable no-unused-vars */
 async function defaultHandler (event, context) {
   /* eslint-enable */
-  console.log('default handler')
-  console.log(JSON.stringify(event))
   const eventBody = JSON.parse(event.body)
   const user = await persistence.getUserByConnection(event.requestContext.connectionId)
-  if (eventBody.action === 'startGame') {
+  if (eventBody.action === 'connectionEstablished') {
+    await notifyUserOfJoin(user)
+    await updateLobbyByGameId(user.gameId)
+  } else if (eventBody.action === 'startGame') {
     await persistence.lockGame(user.gameId)
     await sendStartGame(user.gameId)
   } else if (eventBody.action === 'updateGame') {
