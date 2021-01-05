@@ -13,12 +13,22 @@ provider:
     shouldStartNameWithService: true
   environment:
     MAEXLE_TABLE: ${self:custom.${self:custom.stage}.tableName}
+    websocketsApiDomain:
+      Fn::Join:
+        - ''
+        - - Ref: WebsocketsApi
+          - .execute-api.
+          - ${self:provider.region}
+          - .amazonaws.com/
+          - ${self:custom.stage}
   iamRoleStatements:
     - Effect: Allow
       Action:
         - dynamodb:PutItem
+        - dynamodb:GetItem
+        - dynamodb:UpdateItem
+        - dynamodb:Query
         - dynamodb:DeleteItem
-        - dynamodb:Scan
       Resource:
         Fn::GetAtt:
           - MaexleDynamoDbTable
