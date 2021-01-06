@@ -73,6 +73,9 @@ export default {
       }
     },
     activeUsers (newActiveUsers, oldActiveUsers) {
+      if (newActiveUsers.length === 1) {
+        return
+      }
       const foundCurrentUser = newActiveUsers.find(u => u.id === this.currentUserId)
       if (!foundCurrentUser) {
         this.gameState[CURRENT_USER_ID] = this.calculateNextUserId(oldActiveUsers)
