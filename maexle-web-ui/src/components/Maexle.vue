@@ -1,21 +1,29 @@
 <template>
   <div>
-    <h1>Mäxle</h1>
-    <join-game v-if="state === 'state-join'" :join-game="joinGame"></join-game>
-    <open-game v-else-if="state === 'state-open'" :open-game="openGame"></open-game>
+    <h1>{{ headline }}</h1>
+    <join-game v-if="state === 'state-join'"
+               :join-game="joinGame"
+               :rest-endpoint="restEndpoint"
+               :game-id="gameId"
+    ></join-game>
+    <open-game v-else-if="state === 'state-open'"
+               :open-game="openGame"
+    ></open-game>
     <lobby v-else-if="state === 'state-joined'"
            :active-users="activeUsers"
            :game-id="gameId"
            :user-id="userId"
            :user-name="userName"
-           @gameStarted="gameStarted"></lobby>
+           @gameStarted="gameStarted"
+    ></lobby>
     <game v-else-if="state === 'state-active'"
           :active-users="activeUsers"
           :game-id="gameId"
           :user-id="userId"
           :user-name="userName"
           :game-state="gameState"
-          :update-game="updateGame"></game>
+          :update-game="updateGame"
+    ></game>
   </div>
 </template>
 
@@ -38,10 +46,13 @@ export default {
     return {
       state: null,
       gameId: null,
+      gameName: null,
       userId: null,
       connection: null,
-      // endpoint: 'wss://fly71sq1s6.execute-api.eu-central-1.amazonaws.com/dev',
-      endpoint: 'ws://localhost:3001',
+      // wsEndpoint: 'wss://81mnuav41g.execute-api.eu-central-1.amazonaws.com/dev',
+      // restEndpoint: 'http://192.168.178.22:3000/dev',
+      wsEndpoint: 'ws://192.168.178.22:3001',
+      restEndpoint: 'http://192.168.178.22:3000/dev',
       userName: null,
       activeUsers: [],
       gameState: {}
@@ -68,13 +79,13 @@ export default {
     },
     joinGame (userName) {
       this.userName = userName
-      this.connection = new WebSocket(`${this.endpoint}?action=join&userName=${userName}&gameId=${this.gameId}&userId=${this.userId}`)
+      this.connection = new WebSocket(`${this.wsEndpoint}?action=join&userName=${userName}&gameId=${this.gameId}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
       this.connection.onopen = this.connectionEstablished
     },
     openGame (userName) {
       this.userName = userName
-      this.connection = new WebSocket(`${this.endpoint}?action=open&userName=${userName}&userId=${this.userId}`)
+      this.connection = new WebSocket(`${this.wsEndpoint}?action=open&userName=${userName}&userId=${this.userId}`)
       this.connection.onmessage = this.messageReceived
       this.connection.onopen = this.connectionEstablished
     },
@@ -85,6 +96,7 @@ export default {
       const eventData = JSON.parse(event.data)
       if (eventData.action === 'JOIN') {
         this.gameId = eventData.gameId
+        this.gameName = eventData.gameName
         this.state = 'state-joined'
         if (!this.$route.query.gameId) {
           this.$router.push({path: '/', query: {gameId: this.gameId}})
@@ -108,6 +120,11 @@ export default {
       this.connection.send(JSON.stringify(message))
     }
   },
+  computed: {
+    headline() {
+      return `Mäxle${this.gameName?' - ' + this.gameName:''}`
+    }
+  }
 }
 </script>
 

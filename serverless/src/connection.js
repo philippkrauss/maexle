@@ -4,6 +4,7 @@ const persistence = require('./persistence')
 
 const endpoint = process.env.IS_OFFLINE ? 'http://localhost:3001' : process.env.websocketsApiDomain
 const RESPONSE_OK = {statusCode: 200}
+const RESPONSE_NOT_FOUND = {statusCode: 404}
 
 function createApiGatewayManagementApi () {
   console.log('opening connection to ', endpoint)
@@ -84,11 +85,12 @@ async function sendLobbyUpdate (connectionId, usersInGame) {
   })
 }
 
-async function notifyUserOfJoin (user) {
+async function notifyUserOfJoin (user, gameName) {
   console.log('notifying user of join: ', user)
   await sendAsString(user.connectionId, {
     action: 'JOIN',
     gameId: user.gameId,
+    gameName: gameName
   })
 }
 
@@ -143,7 +145,8 @@ async function defaultHandler (event, context) {
   const eventBody = JSON.parse(event.body)
   const user = await persistence.getUserByConnection(event.requestContext.connectionId)
   if (eventBody.action === 'connectionEstablished') {
-    await notifyUserOfJoin(user)
+    const game = await persistence.getGame(user.gameId)
+    await notifyUserOfJoin(user, game.gameName)
     await updateLobbyByGameId(user.gameId)
   } else if (eventBody.action === 'startGame') {
     await persistence.lockGame(user.gameId)
@@ -156,8 +159,25 @@ async function defaultHandler (event, context) {
   }
 }
 
+/* eslint-disable no-unused-vars */
+async function getGame (event, context) {
+  /* eslint-enable */
+  const gameId = event.pathParameters.id
+
+  const game = await persistence.getGame(gameId)
+  if (!game) {
+    return RESPONSE_NOT_FOUND
+  }
+  return {
+    statusCode: 200,
+    body: JSON.stringify({name: game.gameName, id: gameId}),
+    headers: {'content-type': 'application/json'},
+  }
+}
+
 module.exports = {
   connect,
   disconnect,
   defaultHandler,
+  getGame,
 }

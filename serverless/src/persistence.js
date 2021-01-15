@@ -42,7 +42,7 @@ async function isGameLocked (gameId) {
   return await checkGameStatus(gameId, STATUS_LOCKED)
 }
 
-async function checkGameStatus (gameId, status) {
+async function getGame(gameId) {
   const getResponse = await docClient.get({
     TableName,
     Key: {
@@ -50,7 +50,12 @@ async function checkGameStatus (gameId, status) {
       sKey: gameSKey,
     },
   }).promise()
-  return (getResponse.Item && getResponse.Item.gameStatus === status)
+  return getResponse.Item
+}
+
+async function checkGameStatus (gameId, status) {
+  const game = await getGame(gameId)
+  return (game && game.gameStatus === status)
 }
 
 async function assertGameIsOpen (gameId) {
@@ -167,4 +172,5 @@ module.exports = {
   deleteUser,
   deleteGame,
   getUserByConnection,
+  getGame,
 }

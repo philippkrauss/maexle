@@ -60,6 +60,13 @@ functions:
     events:
       - websocket:
           route: $default
+  getGameName:
+    handler: handlers.getGame
+    events:
+      - http:
+          path: games/{id}
+          method: get
+          cors: true
 resources:
   Resources:
     MaexleDynamoDbTable:
